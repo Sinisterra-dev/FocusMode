@@ -184,11 +184,12 @@ Restauración:
 Cuando hay sesión activa y usuario cierra ventana:
 
 - Se muestra aviso obligatorio:
-  - “El modo Focus está activo. No puedes cerrar la aplicación hasta que finalice el temporizador.”
+  - “El modo Focus está activo. No puedes cerrar la aplicación hasta que finalice el temporizador. Se minimizará a la bandeja del sistema.”
 - Se cancela cierre.
+- Se minimiza la app a bandeja del sistema y permite restaurar ventana desde el menú de la bandeja.
 - En modo estricto, además:
   - se registra evento en `strict_mode.log`
-  - la ventana se minimiza (`iconify`) en vez de cerrarse.
+  - se mantiene el registro de intento de cierre bloqueado.
 
 ---
 
@@ -253,6 +254,16 @@ config_path = Path.home() / "AppData" / "Roaming" / "FocusMode" / "config.json"
 - **Qué hace**: mensajes de aviso/error/confirmación.
 - **Por qué**: feedback claro al usuario en eventos críticos.
 
+## `pystray`
+
+- **Qué hace**: integra un icono real en la bandeja del sistema con menú de acciones.
+- **Por qué**: completar el flujo “minimizar a bandeja” en sesiones activas.
+
+## `Pillow`
+
+- **Qué hace**: genera la imagen del icono de bandeja.
+- **Por qué**: `pystray` requiere una imagen para el tray icon.
+
 ---
 
 ## 13) Relación entre módulos
@@ -292,7 +303,6 @@ graph LR
 
 ## 16) Siguientes mejoras sugeridas
 
-- Integrar bandeja del sistema real (`pystray`) para UX completa de modo estricto.
 - Añadir firma digital del ejecutable para experiencia UAC más confiable.
 - Añadir pruebas unitarias para parser de config y escritura de HOSTS en entorno temporal.
 - Añadir internacionalización (`es/en`) y perfiles de estudio predefinidos.

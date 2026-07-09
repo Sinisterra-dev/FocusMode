@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from threading import Thread
 import tkinter.messagebox as messagebox
 from typing import Callable
 
 import customtkinter as ctk
+from PIL import Image, ImageDraw
+import pystray
 
 from config import ConfigManager, FocusConfig, FocusSession
 from hosts_manager import HostsManager
@@ -36,6 +39,8 @@ class FocusModeApp(ctk.CTk):
         self.hosts_manager = hosts_manager
         self.config_data: FocusConfig = self.config_manager.load()
         self.timer = FocusTimer()
+        self._tray_icon: pystray.Icon | None = None
+        self._tray_thread: Thread | None = None
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -109,6 +114,59 @@ class FocusModeApp(ctk.CTk):
         self.site_list.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
         self.selected_site_var = ctk.StringVar(value="")
+
+    def _create_tray_image(self) -> Image.Image:
+        image = Image.new("RGBA", (64, 64), (20, 24, 34, 255))
+        draw = ImageDraw.Draw(image)
+        draw.ellipse((10, 10, 54, 54), fill=(59, 130, 246, 255))
+        draw.ellipse((24, 24, 40, 40), fill=(248, 250, 252, 255))
+        return image
+
+    def _show_window(self, _icon: pystray.Icon | None = None, _item: pystray.MenuItem | None = None) -> None:
+        self.after(0, self._restore_from_tray)
+
+    def _request_exit_from_tray(self, _icon: pystray.Icon | None = None, _item: pystray.MenuItem | None = None) -> None:
+        self.after(0, self._exit_from_tray)
+
+    def _start_tray_icon(self) -> None:
+        if self._tray_icon is not None:
+            return
+
+        menu = pystray.Menu(
+            pystray.MenuItem("Mostrar", self._show_window, default=True),
+            pystray.MenuItem(
+                "Salir",
+                self._request_exit_from_tray,
+                enabled=lambda _: not self.config_data.session.active,
+            ),
+        )
+        self._tray_icon = pystray.Icon("focusmode", self._create_tray_image(), "Focus Mode", menu=menu)
+        self._tray_thread = Thread(target=self._tray_icon.run, daemon=True)
+        self._tray_thread.start()
+
+    def _stop_tray_icon(self) -> None:
+        if self._tray_icon is None:
+            return
+        self._tray_icon.stop()
+        self._tray_icon = None
+        self._tray_thread = None
+
+    def _minimize_to_tray(self) -> None:
+        self.withdraw()
+        self._start_tray_icon()
+
+    def _restore_from_tray(self) -> None:
+        self._stop_tray_icon()
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+
+    def _exit_from_tray(self) -> None:
+        if self.config_data.session.active:
+            text = "El modo Focus está activo.\nNo puedes cerrar la aplicación hasta que finalice el temporizador."
+            messagebox.showwarning("Focus Mode", text)
+            return
+        self._on_close()
 
     def _refresh_sites_ui(self) -> None:
         for row in self._site_rows:
@@ -231,14 +289,19 @@ class FocusModeApp(ctk.CTk):
         strict = self.strict_mode_var.get()
 
         if session_active:
-            text = "El modo Focus está activo.\nNo puedes cerrar la aplicación hasta que finalice el temporizador."
+            text = (
+                "El modo Focus está activo.\n"
+                "No puedes cerrar la aplicación hasta que finalice el temporizador.\n"
+                "Se minimizará a la bandeja del sistema."
+            )
             messagebox.showwarning("Focus Mode", text)
             if strict:
                 append_strict_log(self.config_manager.data_dir / "strict_mode.log", "Intento de cierre bloqueado")
-                self.iconify()
+            self._minimize_to_tray()
             return
 
         self.timer.reset()
+        self._stop_tray_icon()
         self.destroy()
 
 
