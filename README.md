@@ -14,6 +14,7 @@ Aplicación de escritorio para Windows (Python + CustomTkinter) que bloquea siti
 - Recuperación automática de sesión activa tras reinicio del sistema/app.
 - Solicitud automática de privilegios de administrador (UAC).
 - Modo estricto opcional (bloquea intentos de cierre y registra intentos en log).
+- Minimización real a bandeja del sistema (tray icon) durante sesión activa.
 
 ## Estructura
 
